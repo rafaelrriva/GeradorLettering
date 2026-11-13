@@ -17,11 +17,10 @@
   <!-- Cabeçalho: nome da ferramenta e resumo do que ela faz. -->
   <header class="top">
     <h1>Gerador de Lettering</h1>
-    <p>Caixa que abre do centro, texto revelado letra a letra e arco de círculos. Exporta MOV com alfa ou sequência PNG.</p>
   </header>
   <!-- IDENTIDADE: fica acima de tudo porque é a primeira escolha de cada peça.
          Cada botão troca as cores primárias (CRM e círculos) para a marca. Os botões são gerados pelo JS a partir de BRANDS. -->
-  <div class="brandbar" role="group" aria-label="Identidade visual"><span>Identidade</span><span id="brands" class="row" style="margin:0;text-transform:none;letter-spacing:0;font-weight:600"></span></div>
+  <div class="brandbar" role="group" aria-label="Identidade visual"><span>KV:</span><span id="brands" class="row" style="margin:0;text-transform:none;letter-spacing:0;font-weight:600"></span></div>
 
   <!-- PRÉ-VISUALIZAÇÃO: o canvas mostra o mesmo quadro que será exportado, reduzido para caber na tela.
          O fundo do preview (xadrez, escuro, imagem…) serve só para conferir contraste e nunca entra no arquivo. -->
@@ -53,7 +52,7 @@
           <option value="1080x1350">1080 × 1350 (feed 4:5)</option>
           <option value="1080x1080">1080 × 1080 (quadrado)</option>
         </select></div>
-        <div class="f"><label for="fps">Quadros por segundo</label><select id="fps"><option>24</option><option>25</option><option selected>30</option><option>50</option><option>60</option></select></div>
+        <div class="f"><label for="fps">FPS</label><select id="fps"><option>24</option><option>25</option><option selected>30</option><option>50</option><option>60</option></select></div>
         <div class="f"><label for="fname">Nome do arquivo (vazio = nome da pessoa)</label><input id="fname" type="text" spellcheck="false"></div>
       </div>
       <div class="btns">
