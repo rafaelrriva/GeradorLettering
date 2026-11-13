@@ -85,6 +85,7 @@ const DEFAULTS = {
 
   /* ===== EXPORTAÇÃO E ESTADO ===== */
   res:"1920x1080", fps:30,               // igual ao vídeo de referência
+  fitAuto:true,                          // reposiciona/redimensiona o lettering conforme a resolução (ver layout())
   fname:"",                              // vazio = usa o nome da pessoa
   brand:"tribemd"                        // identidade selecionada no topo
 };
@@ -256,9 +257,36 @@ function wrap(ctx, text, maxW, track){
   while (out.length && out[out.length-1]==="") out.pop();
   return out;
 }
+/* ENCAIXE POR RESOLUÇÃO
+   layout() decide a escala (k) e a posição de acordo com o formato escolhido; layoutAt() monta o lettering.
+   - Paisagem (1080p/4K): mantém a posição escolhida em "Posição"; só encolhe se não couber.
+   - Vertical 9:16: escala para ocupar a largura entre as margens laterais, apoiado embaixo com folga maior
+     (a interface do Reels/Stories cobre a base da tela).
+   - Feed 4:5: igual ao vertical, alinhado à esquerda, com folga menor na base.
+   - Quadrado: escala pela largura do quadro, apoiado embaixo.
+   Em todos: a caixa (e o arco de círculos) nunca sai do quadro; se não couber, tudo é reduzido junto. */
+function formatOf(W, H){ if (!S.fitAuto) return "free"; if (W > H) return "land"; if (W === H) return "square"; return (H/W > 1.5) ? "vertical" : "feed"; }
+// quanto o arco de círculos passa para fora da caixa (à esquerda e embaixo), em px de 1080p
+function dotsOut(){ return (S.dotsOn && S.dotsAnchor==="box") ? Math.max(0, S.dotsR + S.dotsMax/2 - S.radius) : 0; }
 function layout(W, H){
+  const fmt = formatOf(W, H), base = S.scale/100, safe = 0.04*Math.min(W,H), dOut = dotsOut();
+  let k = (Math.min(W,H)/1080) * base;
+  if (fmt === "free" || fmt === "land"){
+    const L0 = layoutAt(W, H, k, null, null, safe);
+    const f = Math.min(1, (W - 2*safe) / (L0.box.w + dOut*k), (H - 2*safe) / (L0.box.h + dOut*k));
+    return f < 1 ? layoutAt(W, H, k*f, null, null, safe) : L0;
+  }
+  const side = 0.06*W;                                                    // folga das "paredes" laterais
+  const bottom = fmt === "vertical" ? 0.13*H : 0.06*H;                    // folga da base do vídeo
+  const L0 = layoutAt(W, H, k, null, null, safe);
+  let f = (W - 2*side) / (L0.box.w + dOut*k);                             // ocupar a largura entre as paredes
+  f = Math.min(f, (H*0.6) / (L0.box.h + dOut*k));                         // sem passar de 60% da altura
+  k *= f;
+  const align = fmt === "feed" ? "left" : null;
+  return layoutAt(W, H, k, (bw, bh) => [side + dOut*k, H - bottom - bh - dOut*k], align, safe);
+}
+function layoutAt(W, H, k, placeFn, alignOverride, safe){
   const ctx = measureCtx;
-  const k = (Math.min(W,H)/1080) * (S.scale/100);
   const tSize=S.tSize*k, dSize=S.dSize*k, tTr=S.tTrack*k, dTr=S.dTrack*k, padX=S.padX*k;
   const TT = fmtTitle(), DD = fmtDesc(); const hasT = TT.trim().length>0, hasD = DD.trim().length>0, crmTxt = crmText(), hasC = crmTxt.length>0;
   const cSize=S.cSize*k, cTr=S.cTrack*k, side = hasC && hasT && S.crmPos==="side";
@@ -284,13 +312,19 @@ function layout(W, H){
   const boxH = y + S.padBot*k;
   // position
   const m = S.margin*k; let bx, by;
+  if (placeFn) [bx, by] = placeFn(boxW, boxH); else {
   switch (S.pos){
     case "lowerLeft":  bx = m; by = H - m - boxH; break;
     case "lowerRight": bx = W - m - boxW; by = H - m - boxH; break;
     case "lowerCenter":bx = (W-boxW)/2; by = H - m - boxH; break;
     default:           bx = (W-boxW)/2; by = (H-boxH)/2;
   }
-  bx += S.offX*k; by += S.offY*k;
+  bx += S.offX*k; by += S.offY*k; }
+  // nunca deixar a caixa (nem o arco de círculos) sair do quadro
+  const dO = dotsOut()*k;
+  bx = Math.min(Math.max(bx, safe + dO), W - safe - boxW);
+  by = Math.min(Math.max(by, safe), H - safe - boxH - dO);
+  const ALIGN = alignOverride || S.align;
   // characters
   const chars = { t:[], d:[], c:[] };
   const G = { t:[tLines,tW2,tTr,fontStr(S.tWeight,tSize)], d:[dLines,dWidths,dTr,fontStr(S.dWeight,dSize)], c:[cLines,cWidths,cTr,fontStr(S.cWeight,cSize)] };
@@ -298,7 +332,7 @@ function layout(W, H){
     [...line].forEach((ch,j)=>{ const x = lx + ctx.measureText(prefix).width + tr*j; prefix+=ch; if (ch.trim()) chars[g].push({ch, x, y: yb}); }); };
   for (const [g,i,base] of baselines){
     const [lines, widths] = G[g]; const lw = widths[i];
-    let lx = bx + padX; if (S.align==="center") lx = bx + padX + (innerW-lw)/2; else if (S.align==="right") lx = bx + boxW - padX - lw;
+    let lx = bx + padX; if (ALIGN==="center") lx = bx + padX + (innerW-lw)/2; else if (ALIGN==="right") lx = bx + boxW - padX - lw;
     place(g, lines[i], lx, by+base);
     if (side && g==="t" && i===tLines.length-1) place("c", cLines[0], lx + tWidths[i] + S.cSide*k, by+tLastBase);
   }
