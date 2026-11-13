@@ -134,8 +134,7 @@ input[type=color]{width:100%;height:34px;border:1px solid var(--line);border-rad
       </div>
       <div class="bar"><i id="prog"></i></div>
       <div id="status" role="status" aria-live="polite"></div>
-      <div class="row"><button id="copyCfg" class="seg">Copiar configurações</button><button id="reset" class="seg">Restaurar padrão</button></div>
-      <textarea id="cfgOut" readonly hidden aria-label="Configurações atuais" style="min-height:120px;font-family:var(--mono);font-size:11px"></textarea>
+      <div class="row"><button id="reset" class="seg">Restaurar padrão</button></div>
     </div>
   </section>
 
@@ -150,11 +149,12 @@ Estado - Unirio.</textarea></div>
         <div class="f full"><label for="crmNum">CRM</label>
           <div class="row"><select id="crmUF" aria-label="Estado do CRM" style="width:84px"></select><input id="crmNum" type="text" inputmode="numeric" placeholder="Número" style="flex:1"><button id="crmToggle" class="seg" type="button" aria-pressed="false">Ocultar CRM</button></div>
           <span class="hint" id="crmPreview"></span></div>
+        <div class="f check full"><input id="autoCase" type="checkbox"><label for="autoCase">Formatar automaticamente: Nome Em Título, CRM EM MAIÚSCULAS, descrição em frase</label></div>
         <p class="hint">Deixe um campo vazio para não exibi-lo. Linhas longas quebram sozinhas.</p>
       </div>
     </details>
 
-    <details open>
+    <details>
       <summary>Tipografia</summary>
       <div class="fields">
         <div class="f"><label for="tSize">Nome · tamanho (px)</label><input id="tSize" type="number" min="10" max="400" step="1"></div>
@@ -180,7 +180,7 @@ Estado - Unirio.</textarea></div>
       </div>
     </details>
 
-    <details open>
+    <details>
       <summary>Cores</summary>
       <div class="fields">
         <div class="presets" id="presets"></div>
@@ -195,7 +195,7 @@ Estado - Unirio.</textarea></div>
       </div>
     </details>
 
-    <details open>
+    <details>
       <summary>Caixa e posição</summary>
       <div class="fields">
         <div class="f check full"><input id="autoW" type="checkbox"><label for="autoW">Largura automática (ajusta ao texto)</label></div>
@@ -217,7 +217,7 @@ Estado - Unirio.</textarea></div>
       </div>
     </details>
 
-    <details open>
+    <details>
       <summary>Círculos</summary>
       <div class="fields">
         <div class="f check full"><input id="dotsOn" type="checkbox"><label for="dotsOn">Mostrar arco de círculos</label></div>
@@ -284,7 +284,7 @@ const DEFAULTS = {
   dur:2, origin:"center", boxStart:0, boxDur:0.37,
   tStart:0.22, tSpread:0.43, dStart:0.31, dSpread:0.48, charDur:0.45, tDx:26, dDx:12,
   ease:"0.35, 0, 0, 1", exitOn:false, exitDur:0.6,
-  res:"1920x1080", fps:30, fname:"", brand:"tribemd"
+  res:"1920x1080", fps:30, fname:"", brand:"tribemd", autoCase:true
 };
 const PRESETS = [
   {name:"Cinza claro", v:{boxColor:"#ececec", tColor:"#1b1b1b", dColor:"#4e4e4e"}},
@@ -300,7 +300,15 @@ const BRANDS = [
 const WEIGHTS = [[300,"Light 300"],[400,"Regular 400"],[500,"Medium 500"],[600,"SemiBold 600"],[700,"Bold 700"],[800,"ExtraBold 800"],[900,"Black 900"]];
 const STORE_KEY = "gerador-lettering-v4";
 const UFS = "AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ");
-const crmText = () => (S.crmShow && String(S.crmNum).trim()) ? `CRM-${S.crmUF}: ${String(S.crmNum).trim().replace(/^crm[\s-]*[a-z]{0,2}[:\s]*/i,"")}` : "";
+const crmText = () => (S.crmShow && String(S.crmNum).trim()) ? `CRM-${S.crmUF}: ${String(S.crmNum).trim().replace(/^crm[\s-]*[a-z]{0,2}[:\s]*/i,"").toLocaleUpperCase("pt-BR")}` : "";
+/* formatação automática: nome em Título, descrição em frase */
+const PARTICLES = new Set("da de do das dos e di du del della van von".split(" "));
+function titleCase(s){ return String(s).toLocaleLowerCase("pt-BR").replace(/\S+/g, (w, i) => {
+  if (i>0 && PARTICLES.has(w)) return w;
+  return w.replace(/(^|[-'’])(\p{L})/gu, (m,a,b) => a + b.toLocaleUpperCase("pt-BR")); }); }
+function sentenceCase(s){ return String(s).toLocaleLowerCase("pt-BR").replace(/(^\s*|[.!?]\s+)(\p{L})/gu, (m,a,b) => a + b.toLocaleUpperCase("pt-BR")); }
+const fmtTitle = () => S.autoCase ? titleCase(S.title) : S.title;
+const fmtDesc  = () => S.autoCase ? sentenceCase(S.desc) : S.desc;
 
 let S = {...DEFAULTS};
 try { const saved = JSON.parse(localStorage.getItem(STORE_KEY)||"null"); if (saved) S = {...DEFAULTS, ...saved}; } catch(e) {}
@@ -338,15 +346,21 @@ for (const k of KEYS){ const el=$(k); if(!el) continue;
     syncDisabled(); save(); requestFonts().then(draw);
   });
 }
-$("copyCfg").addEventListener("click", () => {
-  const diff = {}; for (const k of KEYS) if (JSON.stringify(S[k]) !== JSON.stringify(DEFAULTS[k])) diff[k] = S[k];
-  const txt = JSON.stringify(diff, null, 1); const ta=$("cfgOut"); ta.value = txt; ta.hidden = false;
-  const fallback = () => { ta.focus(); ta.select(); setStatus("Selecionei as configurações no campo abaixo. Copie com Ctrl+C / Cmd+C.", "warn"); };
-  try { navigator.clipboard.writeText(txt).then(() => setStatus("Configurações copiadas. Cole na conversa com o Claude.", "ok"), fallback); } catch(e){ fallback(); }
-});
 function crmPrev(){ $("crmPreview").textContent = crmText() ? "Vai aparecer como: " + crmText() : (S.crmShow ? "Digite o número do CRM." : "CRM oculto."); }
 $("crmToggle").addEventListener("click", () => { S.crmShow=!S.crmShow; syncDisabled(); crmPrev(); save(); requestFonts().then(draw); });
 ["crmUF","crmNum"].forEach(id=>$(id).addEventListener("input", crmPrev));
+/* colar/digitar CRM em qualquer formato -> UF + números */
+function parseCRM(raw){
+  const up = String(raw).toLocaleUpperCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  const rest = up.replace(/\bCRM\b|^CRM|CRM(?=[A-Z]{2}\b)/g," ");
+  let uf = null; for (const m of rest.matchAll(/(?:^|[^A-Z])([A-Z]{2})(?![A-Z])/g)) if (UFS.includes(m[1])) { uf = m[1]; break; }
+  const nm = (rest.match(/\d[\d.\-\/]*\d|\d/g) || []).sort((x,y)=>y.length-x.length)[0] || "";
+  return { uf, num: nm };
+}
+function applyCRM(raw){ const r = parseCRM(raw); if (r.uf) { S.crmUF = r.uf; $("crmUF").value = r.uf; }
+  S.crmNum = r.num; $("crmNum").value = r.num; crmPrev(); save(); requestFonts().then(draw); }
+$("crmNum").addEventListener("paste", e => { const t = (e.clipboardData||window.clipboardData)?.getData("text"); if (!t) return; e.preventDefault(); applyCRM(t); });
+$("crmNum").addEventListener("change", e => applyCRM(e.target.value));
 $("fontSel").addEventListener("change", e => { S.font=e.target.value; save(); requestFonts().then(draw); });
 $("fontFile").addEventListener("change", async e => {
   const f=e.target.files[0]; if(!f) return;
@@ -407,12 +421,12 @@ function layout(W, H){
   const ctx = measureCtx;
   const k = (Math.min(W,H)/1080) * (S.scale/100);
   const tSize=S.tSize*k, dSize=S.dSize*k, tTr=S.tTrack*k, dTr=S.dTrack*k, padX=S.padX*k;
-  const hasT = S.title.trim().length>0, hasD = S.desc.trim().length>0, crmTxt = crmText(), hasC = crmTxt.length>0;
+  const TT = fmtTitle(), DD = fmtDesc(); const hasT = TT.trim().length>0, hasD = DD.trim().length>0, crmTxt = crmText(), hasC = crmTxt.length>0;
   const cSize=S.cSize*k, cTr=S.cTrack*k, side = hasC && hasT && S.crmPos==="side";
   let wrapW = S.autoW ? S.maxW*k : S.boxW*k - 2*padX;
-  ctx.font = fontStr(S.tWeight, tSize); const tLines = hasT ? wrap(ctx, S.title, wrapW, tTr) : [];
+  ctx.font = fontStr(S.tWeight, tSize); const tLines = hasT ? wrap(ctx, TT, wrapW, tTr) : [];
   const tWidths = tLines.map(l => textW(ctx,l,tTr));
-  ctx.font = fontStr(S.dWeight, dSize); const dLines = hasD ? wrap(ctx, S.desc, wrapW, dTr) : [];
+  ctx.font = fontStr(S.dWeight, dSize); const dLines = hasD ? wrap(ctx, DD, wrapW, dTr) : [];
   const dWidths = dLines.map(l => textW(ctx,l,dTr));
   ctx.font = fontStr(S.cWeight, cSize); const cLines = hasC ? (side ? [crmTxt] : wrap(ctx, crmTxt, wrapW, cTr)) : [];
   const cWidths = cLines.map(l => textW(ctx,l,cTr));
@@ -639,7 +653,7 @@ function le(b){ const dv=new DataView(b.buffer); const sig=dv.getUint32(0);
 const inArtifact = () => !!(window.claude && typeof window.claude.use === "function");
 function setStatus(msg, cls){ const s=$("status"); s.textContent=msg; s.className=cls||""; }
 function setProg(v){ $("prog").style.width = (v*100).toFixed(1)+"%"; }
-function personName(){ return String(S.title||"").split("\n")[0].replace(/^\s*(dr|dra|prof|profa)\.?\s+/i,"").trim(); }
+function personName(){ return String(fmtTitle()||"").split("\n")[0].replace(/^\s*(dr|dra|prof|profa)\.?\s+/i,"").trim(); }
 function baseName(){ const raw = String(S.fname||"").trim() || personName() || "lettering"; return raw.normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^\w.-]+/g,"_").replace(/^_+|_+$/g,"").slice(0,60) || "lettering"; }
 async function deliver(blob, filename){
   if (inArtifact()){
