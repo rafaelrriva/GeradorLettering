@@ -259,7 +259,7 @@ function wrap(ctx, text, maxW, track){
 }
 /* ENCAIXE POR RESOLUÇÃO
    layout() decide a escala (k) e a posição de acordo com o formato escolhido; layoutAt() monta o lettering.
-   - Paisagem (1080p/4K): mantém a posição escolhida em "Posição"; só encolhe se não couber.
+   - Paisagem (1080p/4K): centralizado no quadro; só encolhe se não couber.
    - Vertical 9:16: escala para ocupar a largura entre as margens laterais, apoiado embaixo com folga maior
      (a interface do Reels/Stories cobre a base da tela).
    - Feed 4:5: igual ao vertical, alinhado à esquerda, com folga menor na base.
@@ -272,9 +272,11 @@ function layout(W, H){
   const fmt = formatOf(W, H), base = S.scale/100, safe = 0.04*Math.min(W,H), dOut = dotsOut();
   let k = (Math.min(W,H)/1080) * base;
   if (fmt === "free" || fmt === "land"){
-    const L0 = layoutAt(W, H, k, null, null, safe);
+    // 1080p/4K com ajuste ligado: caixa exatamente no centro do quadro (Posição/Ajuste X-Y valem só com o ajuste desligado)
+    const place = fmt === "land" ? (bw, bh) => [(W - bw)/2, (H - bh)/2] : null;
+    const L0 = layoutAt(W, H, k, place, null, safe);
     const f = Math.min(1, (W - 2*safe) / (L0.box.w + dOut*k), (H - 2*safe) / (L0.box.h + dOut*k));
-    return f < 1 ? layoutAt(W, H, k*f, null, null, safe) : L0;
+    return f < 1 ? layoutAt(W, H, k*f, place, null, safe) : L0;
   }
   const side = 0.06*W;                                                    // folga das "paredes" laterais
   const bottom = fmt === "vertical" ? 0.13*H : 0.06*H;                    // folga da base do vídeo
@@ -420,7 +422,7 @@ function drawChecker(ctx,W,H){ const s=Math.max(8,Math.round(W/96)); ctx.fillSty
 function draw(){
   const {W,H} = dims();
   if (work.width!==W||work.height!==H){ work.width=W; work.height=H; }
-  const maxPW = 1280; const sc = Math.min(1, maxPW/W);
+  const maxPW = 1280, maxPH = 720; const sc = Math.min(1, maxPW/W, maxPH/H); // limita também a altura: vertical/feed não ficam gigantes no preview (não afeta a exportação)
   const pw=Math.round(W*sc), ph=Math.round(H*sc);
   if (view.width!==pw||view.height!==ph){ view.width=pw; view.height=ph; }
   const L = layout(W,H);
