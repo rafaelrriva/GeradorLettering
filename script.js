@@ -153,7 +153,7 @@ function toUI(){
   syncDisabled(); syncBrand();
 }
 /* Desativa campos que não fazem sentido no modo atual (ex.: largura fixa com largura automática ligada). */
-function syncDisabled(){ $("boxW").disabled=S.autoW; $("maxW").disabled=!S.autoW; $("exitDur").disabled=!S.exitOn;
+function syncDisabled(){ if ($("scaleVal")) $("scaleVal").textContent = Math.round(S.scale) + "%"; $("boxW").disabled=S.autoW; $("maxW").disabled=!S.autoW; $("exitDur").disabled=!S.exitOn;
   const lower=S.pos!=="center"; $("margin").disabled=!lower && !(S.dotsOn && S.dotsAnchor==="screen");
   $("cSide").disabled = S.crmPos!=="side"; $("cGap").disabled = S.crmPos==="side";
   const hb=$("crmToggle"); hb.setAttribute("aria-pressed", S.crmShow?"false":"true"); hb.textContent = S.crmShow ? "Ocultar CRM" : "Mostrar CRM";
@@ -280,12 +280,18 @@ function layout(W, H){
   }
   const side = 0.06*W;                                                    // folga das "paredes" laterais
   const bottom = fmt === "vertical" ? 0.13*H : 0.06*H;                    // folga da base do vídeo
-  const L0 = layoutAt(W, H, k, null, null, safe);
+  const L0 = layoutAt(W, H, k / base, null, null, safe);  // mede no tamanho 100%
+  k /= base;
   let f = (W - 2*side) / (L0.box.w + dOut*k);                             // ocupar a largura entre as paredes
   f = Math.min(f, (H*0.6) / (L0.box.h + dOut*k));                         // sem passar de 60% da altura
-  k *= f;
+  // slider "Tamanho": aqui 100% = encostar nas paredes. Abaixo disso o lettering encolhe;
+  // acima de 100% não cresce mais, porque já sairia pelas laterais.
+  k *= f * Math.min(1, base);
   const align = fmt === "feed" ? "left" : null;
-  return layoutAt(W, H, k, (bw, bh) => [side + dOut*k, H - bottom - bh - dOut*k], align, safe);
+  return layoutAt(W, H, k, (bw, bh) => {
+    const x = fmt === "feed" ? side + dOut*k : (W - bw + dOut*k)/2;          // feed: à esquerda | vertical/quadrado: centralizado
+    return [Math.max(side + dOut*k, x), H - bottom - bh - dOut*k];
+  }, align, safe);
 }
 function layoutAt(W, H, k, placeFn, alignOverride, safe){
   const ctx = measureCtx;

@@ -149,7 +149,8 @@ Estado - Unirio.</textarea></div>
         <div class="f"><label for="offX">Ajuste X (px)</label><input id="offX" type="number" step="1"></div>
         <div class="f"><label for="offY">Ajuste Y (px)</label><input id="offY" type="number" step="1"></div>
         <div class="f"><label for="margin">Margem da borda (terço inferior)</label><input id="margin" type="number" min="0" max="1000" step="1"></div>
-        <div class="f"><label for="scale">Escala geral (%)</label><input id="scale" type="number" min="10" max="400" step="1"></div>
+        <!-- Slider de tamanho: multiplica tudo (texto, caixa, respiros e círculos) mantendo as proporções -->
+        <div class="f full"><label for="scale">Tamanho do lettering: <span id="scaleVal">100%</span></label><input id="scale" type="range" min="40" max="160" step="1" style="accent-color:var(--accent)"></div>
       </div>
     </details>
 
