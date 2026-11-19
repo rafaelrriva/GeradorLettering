@@ -160,6 +160,10 @@ Estado - Unirio.</textarea></div>
       <summary>Círculos</summary>
       <div class="fields">
         <div class="f check full"><input id="dotsOn" type="checkbox"><label for="dotsOn">Mostrar arco de círculos</label></div>
+        <div class="f"><label for="dotsStyle">Estilo</label><select id="dotsStyle" data-dots><option value="dots">Arco de bolinhas</option><option value="ring">Círculo com contorno</option></select></div>
+        <div class="f"><label for="ringSize">Contorno · diâmetro (px)</label><input id="ringSize" type="number" min="10" max="2000" step="1" data-dots data-ring></div>
+        <div class="f"><label for="ringWidth">Contorno · espessura (px)</label><input id="ringWidth" type="number" min="1" max="200" step="1" data-dots data-ring></div>
+        <div class="f"><label for="ringDur">Contorno · tempo para desenhar (s)</label><input id="ringDur" type="number" min="0.05" step="0.05" data-dots data-ring></div>
         <div class="f"><label for="dotsAnchor">Ancorar no canto inferior esquerdo</label><select id="dotsAnchor" data-dots><option value="box">da caixa</option><option value="screen">da tela</option></select></div>
         <div class="f"><label for="dotsCount">Quantidade</label><input id="dotsCount" type="number" min="1" max="30" step="1" data-dots></div>
         <div class="f"><label for="dotsMax">Maior círculo (px)</label><input id="dotsMax" type="number" min="1" max="400" step="1" data-dots></div>

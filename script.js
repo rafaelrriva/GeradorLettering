@@ -44,6 +44,10 @@ const DEFAULTS = {
      Arco de bolinhas inspirado no símbolo da TribeMD. Ficam no canto inferior esquerdo, fora da caixa,
      num arco concêntrico à quina arredondada para parecer "orbitar" a caixa. */
   dotsOn:true,
+  dotsStyle:"dots",                      // "dots" = arco de bolinhas | "ring" = um círculo só, contorno de linha contínua
+  ringSize:150,                          // diâmetro do círculo de contorno (px)
+  ringWidth:6,                           // espessura da linha do contorno (px)
+  ringDur:0.7,                           // tempo para a linha "desenhar" a volta completa (s)
   dotsAnchor:"box",                      // "box" = canto da caixa | "screen" = canto da tela (usa a margem)
   dotsCount:8,                           // mesma quantidade aproximada do símbolo da marca
   dotsMax:30, dotsMin:8,                 // diâmetros: o 1º é o maior e vão diminuindo, como no logo
@@ -141,7 +145,7 @@ for (const id of ["tWeight","dWeight","cWeight"]) $(id).innerHTML = WEIGHTS.map(
    Assim, para criar um parâmetro novo basta: 1) adicionar em DEFAULTS, 2) criar o <input id="mesmo-nome">.
    NUM lista as chaves numéricas (são convertidas com parseFloat; valores inválidos são ignorados). */
 /* ---------------- bind controls ---------------- */
-const NUM = new Set(["tSize","tWeight","tLH","tTrack","dSize","dWeight","dLH","dTrack","gap","boxAlpha","boxW","maxW","padX","padTop","padBot","radius","offX","offY","margin","scale","dur","boxStart","boxDur","tStart","tSpread","dStart","dSpread","charDur","tDx","dDx","exitDur","fps","cSize","cWeight","cTrack","cGap","cSide","cStart","cSpread","cDx","dotsCount","dotsMax","dotsMin","dotsR","dotsA0","dotsA1","dotsOffX","dotsOffY","dotsStart","dotsStagger","dotsDur"]);
+const NUM = new Set(["tSize","tWeight","tLH","tTrack","dSize","dWeight","dLH","dTrack","gap","boxAlpha","boxW","maxW","padX","padTop","padBot","radius","offX","offY","margin","scale","dur","boxStart","boxDur","tStart","tSpread","dStart","dSpread","charDur","tDx","dDx","exitDur","fps","cSize","cWeight","cTrack","cGap","cSide","cStart","cSpread","cDx","dotsCount","dotsMax","dotsMin","dotsR","dotsA0","dotsA1","dotsOffX","dotsOffY","dotsStart","dotsStagger","dotsDur","ringSize","ringWidth","ringDur"]);
 const KEYS = Object.keys(DEFAULTS);
 /* Copia o estado S para os campos da tela. */
 function toUI(){
@@ -159,6 +163,10 @@ function syncDisabled(){ if ($("scaleVal")) $("scaleVal").textContent = Math.rou
   const hb=$("crmToggle"); hb.setAttribute("aria-pressed", S.crmShow?"false":"true"); hb.textContent = S.crmShow ? "Ocultar CRM" : "Mostrar CRM";
   $("crmUF").disabled = $("crmNum").disabled = !S.crmShow;
   document.querySelectorAll("[data-dots]").forEach(el=>el.disabled=!S.dotsOn);
+  // campos de cada estilo: só os do estilo escolhido ficam ativos
+  const ring = S.dotsStyle==="ring";
+  document.querySelectorAll("[data-ring]").forEach(el=>el.disabled=!S.dotsOn||!ring);
+  ["dotsCount","dotsMax","dotsMin","dotsR","dotsA0","dotsA1","dotsStagger","dotsDur","dotsC2"].forEach(id=>{ const el=$(id); if(el) el.disabled=!S.dotsOn||ring; });
   if (typeof baseName==="function") $("fname").placeholder = baseName(); }
 /* Salva no localStorage. Fica em try/catch porque o navegador pode bloquear (aba anônima, por exemplo). */
 function save(){ try{ const {...o}=S; localStorage.setItem(STORE_KEY, JSON.stringify(o)); }catch(e){} }
@@ -267,7 +275,7 @@ function wrap(ctx, text, maxW, track){
    Em todos: a caixa (e o arco de círculos) nunca sai do quadro; se não couber, tudo é reduzido junto. */
 function formatOf(W, H){ if (!S.fitAuto) return "free"; if (W > H) return "land"; if (W === H) return "square"; return (H/W > 1.5) ? "vertical" : "feed"; }
 // quanto o arco de círculos passa para fora da caixa (à esquerda e embaixo), em px de 1080p
-function dotsOut(){ return (S.dotsOn && S.dotsAnchor==="box") ? Math.max(0, S.dotsR + S.dotsMax/2 - S.radius) : 0; }
+function dotsOut(){ if (!(S.dotsOn && S.dotsAnchor==="box")) return 0; return S.dotsStyle==="ring" ? (S.ringSize + S.ringWidth)/2 : Math.max(0, S.dotsR + S.dotsMax/2 - S.radius); }
 function layout(W, H){
   const fmt = formatOf(W, H), base = S.scale/100, safe = 0.04*Math.min(W,H), dOut = dotsOut();
   let k = (Math.min(W,H)/1080) * base;
@@ -363,7 +371,7 @@ function renderFrame(ctx, W, H, t, L){
     if (te > 0){ textMul = 1 - easeOutQuad(clamp01(te/(S.exitDur*0.45)));
       const pc = EASE(clamp01((te - S.exitDur*0.35)/(S.exitDur*0.65))); open = Math.min(open, 1-pc); } }
   if (S.origin==="none"){ boxFade = open; open = open>0?1:0; }
-  if (S.dotsOn) drawDots(ctx, W, H, t, L, textMul);
+  if (S.dotsOn) (S.dotsStyle === "ring" ? drawRing : drawDots)(ctx, W, H, t, L, textMul);
   const w = box.w*open; if (w < 0.5) return;
   let x = box.x; if (S.origin==="center") x = box.x + (box.w-w)/2; else if (S.origin==="right") x = box.x + box.w - w;
   ctx.save();
@@ -393,6 +401,20 @@ function renderFrame(ctx, W, H, t, L){
 function mix(a,b,f){ const p=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)); const A=p(a),B=p(b);
   return "rgb("+A.map((v,i)=>Math.round(v+(B[i]-v)*f)).join(",")+")"; }
 const backOut = v => { const c=1.70158; v-=1; return 1 + (c+1)*v*v*v + c*v*v; };
+/* CÍRCULO DE CONTORNO (opção "ring"): um anel de linha contínua centrado na quina inferior esquerda da caixa.
+   É desenhado antes da caixa, então a caixa cobre parte dele e o anel parece "sair de trás" da quina.
+   Animação: a linha se desenha em volta completa (de cima, sentido horário) com a mesma curva da caixa.
+   Cor: dotsC1 (cor da marca). Ajuste X/Y e início vêm dos campos dos círculos. */
+function drawRing(ctx, W, H, t, L, mul){
+  const {box,k} = L;
+  let cx, cy;
+  if (S.dotsAnchor==="screen"){ cx = S.margin*k; cy = H - S.margin*k; } else { cx = box.x; cy = box.y + box.h; }
+  cx += S.dotsOffX*k; cy += S.dotsOffY*k;
+  const p = EASE(clamp01((t - S.dotsStart)/S.ringDur)); if (p <= 0 || mul <= 0.001) return;
+  const r = S.ringSize*k/2, a0 = -Math.PI/2;
+  ctx.save(); ctx.globalAlpha = mul; ctx.strokeStyle = S.dotsC1; ctx.lineWidth = S.ringWidth*k; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.arc(cx, cy, r, a0, a0 + Math.PI*2*p); ctx.stroke(); ctx.restore();
+}
 function drawDots(ctx, W, H, t, L, mul){
   const {box,k}=L, n=Math.max(1,Math.round(S.dotsCount));
   let cx, cy;
